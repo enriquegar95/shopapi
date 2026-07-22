@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: shopapi-db
+    environment:
+      POSTGRES_DB: shopapi
+      POSTGRES_USER: shopapi
+      POSTGRES_PASSWORD: shopapi
+    ports:
+      - "5432:5432"
+    volumes:
+      - shopapi-data:/var/lib/postgresql/data
+
+volumes:
+  shopapi-data:
