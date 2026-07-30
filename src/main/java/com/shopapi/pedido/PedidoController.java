@@ -7,6 +7,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @RestController
 @RequestMapping("/api/v1/pedidos")
@@ -16,8 +18,11 @@ public class PedidoController {
     private final PedidoService pedidoService;
 
     @PostMapping
-    public ResponseEntity<PedidoResponseDTO> crear(@Valid @RequestBody PedidoRequestDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(pedidoService.crear(dto));
+    public ResponseEntity<PedidoResponseDTO> crear(
+            @Valid @RequestBody PedidoRequestDTO dto,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        PedidoResponseDTO creado = pedidoService.crear(dto, userDetails.getUsername());
+        return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 
     @GetMapping

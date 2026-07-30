@@ -1,8 +1,10 @@
 package com.shopapi.pedido;
 
+import com.shopapi.common.exception.BusinessRuleException;
 import com.shopapi.common.exception.ResourceNotFoundException;
 import com.shopapi.producto.Producto;
 import com.shopapi.producto.ProductoRepository;
+import com.shopapi.usuario.RolUsuario;
 import com.shopapi.usuario.Usuario;
 import com.shopapi.usuario.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,13 +26,15 @@ public class PedidoService {
     private final ProductoRepository productoRepository;
 
     @Transactional
-    public PedidoResponseDTO crear(PedidoRequestDTO dto) {
-        Usuario usuario = usuarioRepository.findById(dto.usuarioId())
+    public PedidoResponseDTO crear(PedidoRequestDTO dto, String emailAutenticado) {
+        Usuario usuarioAutenticado = usuarioRepository.findByEmail(emailAutenticado)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Usuario no encontrado con id " + dto.usuarioId()));
+                        "Usuario no encontrado con email " + emailAutenticado));
+
+        Usuario usuarioPedido = resolverUsuarioDelPedido(dto, usuarioAutenticado);
 
         Pedido pedido = Pedido.builder()
-                .usuario(usuario)
+                .usuario(usuarioPedido)
                 .fecha(LocalDateTime.now())
                 .estado(EstadoPedido.PENDIENTE)
                 .lineas(new ArrayList<>())
@@ -42,6 +46,15 @@ public class PedidoService {
             Producto producto = productoRepository.findById(lineaDto.productoId())
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Producto no encontrado con id " + lineaDto.productoId()));
+
+            if (producto.getStock() < lineaDto.cantidad()) {
+                throw new BusinessRuleException(
+                        "Stock insuficiente para '" + producto.getNombre() +
+                                "' (disponible: " + producto.getStock() +
+                                ", solicitado: " + lineaDto.cantidad() + ")");
+            }
+
+            producto.setStock(producto.getStock() - lineaDto.cantidad());
 
             LineaPedido linea = LineaPedido.builder()
                     .pedido(pedido)
@@ -58,6 +71,17 @@ public class PedidoService {
 
         Pedido guardado = pedidoRepository.save(pedido);
         return PedidoMapper.toResponseDTO(guardado);
+    }
+
+    private Usuario resolverUsuarioDelPedido(PedidoRequestDTO dto, Usuario usuarioAutenticado) {
+        if (usuarioAutenticado.getRol() == RolUsuario.CLIENTE) {
+            return usuarioAutenticado;
+        }
+
+        Long usuarioIdObjetivo = dto.usuarioId() != null ? dto.usuarioId() : usuarioAutenticado.getId();
+        return usuarioRepository.findById(usuarioIdObjetivo)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Usuario no encontrado con id " + usuarioIdObjetivo));
     }
 
     @Transactional(readOnly = true)
