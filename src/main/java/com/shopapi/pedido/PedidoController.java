@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -26,18 +27,27 @@ public class PedidoController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<PedidoResponseDTO>> listar(Pageable pageable) {
-        return ResponseEntity.ok(pedidoService.listar(pageable));
+    public ResponseEntity<Page<PedidoResponseDTO>> listar(
+            Pageable pageable, @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(pedidoService.listar(pageable, userDetails.getUsername()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PedidoResponseDTO> obtenerPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(pedidoService.obtenerPorId(id));
+    public ResponseEntity<PedidoResponseDTO> obtenerPorId(
+            @PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(pedidoService.obtenerPorId(id, userDetails.getUsername()));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         pedidoService.eliminar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/estado")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VENDEDOR')")
+    public ResponseEntity<PedidoResponseDTO> cambiarEstado(
+            @PathVariable Long id, @Valid @RequestBody CambiarEstadoDTO dto) {
+        return ResponseEntity.ok(pedidoService.cambiarEstado(id, dto.estado()));
     }
 }

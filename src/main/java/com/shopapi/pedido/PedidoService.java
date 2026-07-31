@@ -10,6 +10,7 @@ import com.shopapi.usuario.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,8 +86,34 @@ public class PedidoService {
     }
 
     @Transactional(readOnly = true)
-    public Page<PedidoResponseDTO> listar(Pageable pageable) {
+    public Page<PedidoResponseDTO> listar(Pageable pageable, String emailAutenticado) {
+        Usuario usuarioActual = usuarioRepository.findByEmail(emailAutenticado)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        if (usuarioActual.getRol() == RolUsuario.CLIENTE) {
+            return pedidoRepository.findByUsuarioId(usuarioActual.getId(), pageable)
+                    .map(PedidoMapper::toResponseDTO);
+        }
+
         return pedidoRepository.findAll(pageable).map(PedidoMapper::toResponseDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public PedidoResponseDTO obtenerPorId(Long id, String emailAutenticado) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id " + id));
+
+        Usuario usuarioActual = usuarioRepository.findByEmail(emailAutenticado)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        boolean esPropio = pedido.getUsuario().getId().equals(usuarioActual.getId());
+        boolean esStaff = usuarioActual.getRol() != RolUsuario.CLIENTE;
+
+        if (!esPropio && !esStaff) {
+            throw new AccessDeniedException("No puedes ver pedidos de otro usuario");
+        }
+
+        return PedidoMapper.toResponseDTO(pedido);
     }
 
     @Transactional(readOnly = true)
@@ -102,5 +129,30 @@ public class PedidoService {
             throw new ResourceNotFoundException("Pedido no encontrado con id " + id);
         }
         pedidoRepository.deleteById(id);
+    }
+
+    @Transactional
+    public PedidoResponseDTO cambiarEstado(Long id, EstadoPedido nuevoEstado) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id " + id));
+
+        if (!TransicionEstadoValidator.esTransicionValida(pedido.getEstado(), nuevoEstado)) {
+            throw new BusinessRuleException(
+                    "No se puede pasar de " + pedido.getEstado() + " a " + nuevoEstado);
+        }
+
+        if (nuevoEstado == EstadoPedido.CANCELADO) {
+            reponerStock(pedido);
+        }
+
+        pedido.setEstado(nuevoEstado);
+        return PedidoMapper.toResponseDTO(pedido);
+    }
+
+    private void reponerStock(Pedido pedido) {
+        for (LineaPedido linea : pedido.getLineas()) {
+            Producto producto = linea.getProducto();
+            producto.setStock(producto.getStock() + linea.getCantidad());
+        }
     }
 }
