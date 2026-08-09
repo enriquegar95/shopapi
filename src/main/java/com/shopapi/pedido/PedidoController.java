@@ -1,5 +1,8 @@
 package com.shopapi.pedido;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -46,6 +49,17 @@ public class PedidoController {
 
     @PatchMapping("/{id}/estado")
     @PreAuthorize("hasAnyRole('ADMIN', 'VENDEDOR')")
+    @Operation(
+            summary = "Cambiar el estado de un pedido",
+            description = "Las unicas transiciones validas son: PENDIENTE -> CONFIRMADO o CANCELADO; "
+                    + "CONFIRMADO -> ENVIADO o CANCELADO; ENVIADO -> ENTREGADO. "
+                    + "Cancelar un pedido repone automaticamente el stock de sus lineas."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Estado actualizado correctamente"),
+            @ApiResponse(responseCode = "404", description = "Pedido no encontrado"),
+            @ApiResponse(responseCode = "409", description = "La transicion de estado solicitada no es valida")
+    })
     public ResponseEntity<PedidoResponseDTO> cambiarEstado(
             @PathVariable Long id, @Valid @RequestBody CambiarEstadoDTO dto) {
         return ResponseEntity.ok(pedidoService.cambiarEstado(id, dto.estado()));

@@ -2,6 +2,9 @@ package com.shopapi.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
@@ -13,7 +16,17 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI customOpenAPI() {
         String schemeName = "bearerAuth";
+
         return new OpenAPI()
+                .info(new Info()
+                        .title("ShopAPI")
+                        .description("API REST de gestion de pedidos e inventario, con "
+                                + "autenticacion JWT, control de stock y maquina de estados de pedidos.")
+                        .version("1.0.0")
+                        .contact(new Contact()
+                                .name("Kike")
+                                .url("https://github.com/enriquegar95/shopapi"))
+                        .license(new License().name("MIT")))
                 .addSecurityItem(new SecurityRequirement().addList(schemeName))
                 .components(new Components().addSecuritySchemes(schemeName,
                         new SecurityScheme()

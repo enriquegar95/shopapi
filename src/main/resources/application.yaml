@@ -14,3 +14,9 @@ server:
 jwt:
   secret: "proyecto-api-shop-spring-boot-hibernate-postgres-sql-docker"
   expiration: 86400000
+
+springdoc:
+  swagger-ui:
+    operationsSorter: method
+    tagsSorter: alpha
+    doc-expansion: none
