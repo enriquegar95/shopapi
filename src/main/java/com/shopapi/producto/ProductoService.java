@@ -8,6 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 
 @Service
 @RequiredArgsConstructor
@@ -33,14 +35,15 @@ public class ProductoService {
                 .map(ProductoMapper::toResponseDTO);
     }
 
+    @Cacheable(value = "productos", key = "#id")
     @Transactional(readOnly = true)
     public ProductoResponseDTO obtenerPorId(Long id) {
         Producto producto = productoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Producto no encontrado con id " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id " + id));
         return ProductoMapper.toResponseDTO(producto);
     }
 
+    @CacheEvict(value = "productos", key = "#id")
     @Transactional
     public ProductoResponseDTO actualizar(Long id, ProductoRequestDTO dto) {
         Producto producto = productoRepository.findById(id)
@@ -59,6 +62,7 @@ public class ProductoService {
         return ProductoMapper.toResponseDTO(producto);
     }
 
+    @CacheEvict(value = "productos", key = "#id")
     @Transactional
     public void eliminar(Long id) {
         if (!productoRepository.existsById(id)) {

@@ -2,7 +2,7 @@
 
 **API REST de gestión de pedidos e inventario**, con autenticación JWT, control de stock en tiempo real y una máquina de estados de pedidos con reglas de negocio reales.
 
-![Java](https://img.shields.io/badge/Java-24-orange)
+![Java](https://img.shields.io/badge/Java-21-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.7-brightgreen)
 ![Spring Security](https://img.shields.io/badge/Spring%20Security-JWT-blue)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
@@ -46,16 +46,16 @@ La mayoría de proyectos de portfolio junior se quedan en un CRUD con cuatro end
 
 ## Stack técnico
 
-| Categoría | Tecnología |
-|---|---|
-| Lenguaje | Java 24 (LTS) |
-| Framework | Spring Boot 4.0.7 / Spring Framework 7 |
+| Categoría | Tecnología                                 |
+|---|--------------------------------------------|
+| Lenguaje | Java 21 (LTS)                              |
+| Framework | Spring Boot 4.0.7 / Spring Framework 7     |
 | Persistencia | Spring Data JPA + Hibernate, PostgreSQL 16 |
-| Seguridad | Spring Security 7, JWT (JJWT), BCrypt |
-| Testing | JUnit 5, Mockito, AssertJ, Testcontainers |
-| Documentación | springdoc-openapi (Swagger UI) |
-| Contenedores | Docker / Docker Compose |
-| Build | Maven |
+| Seguridad | Spring Security 7, JWT (JJWT), BCrypt      |
+| Testing | JUnit 5, Mockito, AssertJ, Testcontainers  |
+| Documentación | springdoc-openapi (Swagger UI)             |
+| Contenedores | Docker / Docker Compose                    |
+| Build | Maven                                      |
 
 ## Arquitectura
 
@@ -161,7 +161,7 @@ Cancelar un pedido (desde `PENDIENTE` o `CONFIRMADO`) repone automáticamente el
 
 ## Cómo ejecutarlo en local
 
-**Requisitos**: JDK 24, Docker Desktop, Maven (o usar el wrapper incluido).
+**Requisitos**: JDK 21, Docker Desktop, Maven (o usar el wrapper incluido).
 
 ```bash
 # 1. Clonar el repositorio
@@ -221,7 +221,7 @@ Algunas decisiones de diseño que fueron deliberadas, no por defecto:
 Fases completadas y verificadas: CRUD base, autenticación y autorización, lógica de negocio de pedidos con máquina de estados. En marcha o pendiente:
 
 - [ ] Suite de tests de integración completa (Testcontainers) para el resto de controllers
-- [ ] Documentación OpenAPI enriquecida con ejemplos y descripciones de negocio
+- [X] Documentación OpenAPI enriquecida con ejemplos y descripciones de negocio
 - [ ] Caché con Redis para el catálogo de productos
 - [ ] Procesamiento asíncrono de pedidos con RabbitMQ
 - [ ] Docker Compose completo (app + base de datos + servicios) y despliegue
