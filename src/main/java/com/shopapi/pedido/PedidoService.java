@@ -4,6 +4,7 @@ import com.shopapi.common.exception.BusinessRuleException;
 import com.shopapi.common.exception.ResourceNotFoundException;
 import com.shopapi.producto.Producto;
 import com.shopapi.producto.ProductoRepository;
+import com.shopapi.producto.ProductoService;
 import com.shopapi.usuario.RolUsuario;
 import com.shopapi.usuario.Usuario;
 import com.shopapi.usuario.UsuarioRepository;
@@ -25,6 +26,7 @@ public class PedidoService {
     private final PedidoRepository pedidoRepository;
     private final UsuarioRepository usuarioRepository;
     private final ProductoRepository productoRepository;
+    private final ProductoService productoService;
 
     @Transactional
     public PedidoResponseDTO crear(PedidoRequestDTO dto, String emailAutenticado) {
@@ -56,6 +58,7 @@ public class PedidoService {
             }
 
             producto.setStock(producto.getStock() - lineaDto.cantidad());
+            productoService.evictarCache(producto.getId());
 
             LineaPedido linea = LineaPedido.builder()
                     .pedido(pedido)
@@ -153,6 +156,7 @@ public class PedidoService {
         for (LineaPedido linea : pedido.getLineas()) {
             Producto producto = linea.getProducto();
             producto.setStock(producto.getStock() + linea.getCantidad());
+            productoService.evictarCache(producto.getId());
         }
     }
 }

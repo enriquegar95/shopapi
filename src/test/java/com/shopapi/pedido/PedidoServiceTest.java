@@ -3,6 +3,7 @@ package com.shopapi.pedido;
 import com.shopapi.common.exception.BusinessRuleException;
 import com.shopapi.producto.Producto;
 import com.shopapi.producto.ProductoRepository;
+import com.shopapi.producto.ProductoService;
 import com.shopapi.usuario.RolUsuario;
 import com.shopapi.usuario.Usuario;
 import com.shopapi.usuario.UsuarioRepository;
@@ -30,6 +31,7 @@ class PedidoServiceTest {
     @Mock private PedidoRepository pedidoRepository;
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private ProductoRepository productoRepository;
+    @Mock private ProductoService productoService;
 
     @InjectMocks
     private PedidoService pedidoService;

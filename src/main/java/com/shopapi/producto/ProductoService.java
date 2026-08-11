@@ -70,4 +70,10 @@ public class ProductoService {
         }
         productoRepository.deleteById(id);
     }
+
+    @CacheEvict(value = "productos", key = "#id")
+    public void evictarCache(Long id) {
+        // Cuerpo vacio a proposito: este metodo no hace nada por si mismo,
+        // existe solo para que Spring intercepte la llamada y dispare la invalidacion.
+    }
 }
