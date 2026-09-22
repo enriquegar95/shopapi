@@ -2,6 +2,8 @@ package com.shopapi.pedido;
 
 import com.shopapi.common.exception.BusinessRuleException;
 import com.shopapi.common.exception.ResourceNotFoundException;
+import com.shopapi.messaging.PedidoCreadoEvent;
+import com.shopapi.messaging.PedidoEstadoCambiadoEvent;
 import com.shopapi.producto.Producto;
 import com.shopapi.producto.ProductoRepository;
 import com.shopapi.producto.ProductoService;
@@ -9,6 +11,7 @@ import com.shopapi.usuario.RolUsuario;
 import com.shopapi.usuario.Usuario;
 import com.shopapi.usuario.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -27,6 +30,7 @@ public class PedidoService {
     private final UsuarioRepository usuarioRepository;
     private final ProductoRepository productoRepository;
     private final ProductoService productoService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public PedidoResponseDTO crear(PedidoRequestDTO dto, String emailAutenticado) {
@@ -74,6 +78,10 @@ public class PedidoService {
         pedido.setTotal(total);
 
         Pedido guardado = pedidoRepository.save(pedido);
+
+        eventPublisher.publishEvent(new PedidoCreadoEvent(
+                guardado.getId(), guardado.getUsuario().getEmail(), guardado.getTotal()));
+
         return PedidoMapper.toResponseDTO(guardado);
     }
 
@@ -139,9 +147,10 @@ public class PedidoService {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado con id " + id));
 
-        if (!TransicionEstadoValidator.esTransicionValida(pedido.getEstado(), nuevoEstado)) {
-            throw new BusinessRuleException(
-                    "No se puede pasar de " + pedido.getEstado() + " a " + nuevoEstado);
+        EstadoPedido estadoAnterior = pedido.getEstado();
+
+        if (!TransicionEstadoValidator.esTransicionValida(estadoAnterior, nuevoEstado)) {
+            throw new BusinessRuleException("No se puede pasar de " + estadoAnterior + " a " + nuevoEstado);
         }
 
         if (nuevoEstado == EstadoPedido.CANCELADO) {
@@ -149,6 +158,10 @@ public class PedidoService {
         }
 
         pedido.setEstado(nuevoEstado);
+
+        eventPublisher.publishEvent(new PedidoEstadoCambiadoEvent(
+                pedido.getId(), pedido.getUsuario().getEmail(), estadoAnterior.name(), nuevoEstado.name()));
+
         return PedidoMapper.toResponseDTO(pedido);
     }
 
