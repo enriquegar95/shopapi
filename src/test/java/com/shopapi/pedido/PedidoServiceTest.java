@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ class PedidoServiceTest {
     @Mock private UsuarioRepository usuarioRepository;
     @Mock private ProductoRepository productoRepository;
     @Mock private ProductoService productoService;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private PedidoService pedidoService;
