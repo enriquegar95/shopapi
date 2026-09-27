@@ -246,7 +246,7 @@ Algunas decisiones de diseño que fueron deliberadas, no por defecto:
 
 Fases completadas y verificadas: CRUD base, autenticación y autorización, lógica de negocio de pedidos con máquina de estados, documentación OpenAPI, caché con Redis, mensajería con RabbitMQ, containerización completa y CI/CD. Pendiente:
 
-- [ ] Suite de tests de integración completa (Testcontainers) para el resto de controllers (Categoria, Usuario, Pedido)
+- [x] Suite de tests de integración completa (Testcontainers) para el resto de controllers (Categoria, Usuario, Pedido)
 - [x] Documentación OpenAPI enriquecida con ejemplos y descripciones de negocio
 - [x] Caché con Redis para el catálogo de productos
 - [x] Mensajería asíncrona con RabbitMQ
