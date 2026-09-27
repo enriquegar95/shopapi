@@ -1,13 +1,10 @@
 package com.shopapi;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class ShopapiApplicationTests {
+class ShopapiApplicationTests extends IntegrationTestBase {
 
 	@Test
 	void contextLoads() {
 	}
-
 }
