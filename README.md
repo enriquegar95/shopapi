@@ -10,7 +10,7 @@
 ![RabbitMQ](https://img.shields.io/badge/RabbitMQ-4-FF6600)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
 ![Testing](https://img.shields.io/badge/Tests-JUnit5%20%2B%20Mockito%20%2B%20Testcontainers-25A162)
-![CI/CD](https://github.com/enriquegar95/shopapi/actions/workflows/ci-cd.yml/badge.svg)
+[![CI/CD](https://github.com/enriquegar95/shopapi/actions/workflows/ci-cd.yaml/badge.svg)](https://github.com/enriquegar95/shopapi/actions/workflows/ci-cd.yaml)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 No es un CRUD de ejemplo — modela un flujo de negocio completo: un producto tiene stock real, un pedido lo descuenta y lo repone según su estado, y cada usuario ve solo lo que le corresponde según su rol.
