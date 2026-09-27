@@ -6,7 +6,11 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.7-brightgreen)
 ![Spring Security](https://img.shields.io/badge/Spring%20Security-JWT-blue)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D)
+![RabbitMQ](https://img.shields.io/badge/RabbitMQ-4-FF6600)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
 ![Testing](https://img.shields.io/badge/Tests-JUnit5%20%2B%20Mockito%20%2B%20Testcontainers-25A162)
+![CI/CD](https://github.com/enriquegar95/shopapi/actions/workflows/ci-cd.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
 No es un CRUD de ejemplo — modela un flujo de negocio completo: un producto tiene stock real, un pedido lo descuenta y lo repone según su estado, y cada usuario ve solo lo que le corresponde según su rol.
@@ -23,6 +27,7 @@ No es un CRUD de ejemplo — modela un flujo de negocio completo: un producto ti
 - [Cómo ejecutarlo en local](#cómo-ejecutarlo-en-local)
 - [Documentación de la API](#documentación-de-la-api)
 - [Testing](#testing)
+- [CI/CD](#cicd)
 - [Decisiones técnicas destacadas](#decisiones-técnicas-destacadas)
 - [Roadmap](#roadmap)
 - [Sobre el autor](#sobre-el-autor)
@@ -39,23 +44,30 @@ La mayoría de proyectos de portfolio junior se quedan en un CRUD con cuatro end
 - **Control de stock real**: un pedido valida disponibilidad y descuenta stock de forma atómica al crearse
 - **Máquina de estados de pedidos** con transiciones validadas (`PENDIENTE → CONFIRMADO → ENVIADO → ENTREGADO`, o cancelación con reposición automática de stock)
 - **Snapshot de precio**: cada línea de pedido guarda el precio del producto en el momento de la compra, no una referencia viva que cambiaría con el catálogo
+- **Caché con Redis** para consultas de productos individuales, con invalidación correcta cuando el stock cambia desde el servicio de pedidos, no solo desde el propio CRUD de productos
+- **Mensajería asíncrona con RabbitMQ**: eventos de creación y cambio de estado de pedidos, publicados únicamente tras confirmar la transacción, con cola muerta (DLQ) para mensajes que no se pueden procesar
 - **Paginación** en todos los listados (`Page`/`Pageable` de Spring Data)
 - **Manejo de errores centralizado** con respuestas JSON consistentes (400/401/403/404/409) en toda la API
-- **Documentación interactiva** con Swagger / OpenAPI
-- **Tests unitarios** de la lógica de negocio con Mockito y AssertJ, y **tests de integración** con PostgreSQL real vía Testcontainers
+- **Documentación interactiva** con Swagger / OpenAPI, con ejemplos y descripciones de negocio en cada endpoint
+- **Stack completamente containerizado**: la aplicación y sus cuatro dependencias (PostgreSQL, Redis, RabbitMQ, pgAdmin) se levantan con un único `docker compose up`
+- **CI/CD con GitHub Actions**: cada push ejecuta la suite de tests completa y publica automáticamente la imagen Docker
+- **Tests unitarios** de la lógica de negocio con Mockito y AssertJ, y **tests de integración** con PostgreSQL, Redis y RabbitMQ reales vía Testcontainers
 
 ## Stack técnico
 
-| Categoría | Tecnología                                 |
-|---|--------------------------------------------|
-| Lenguaje | Java 21 (LTS)                              |
-| Framework | Spring Boot 4.0.7 / Spring Framework 7     |
+| Categoría | Tecnología |
+|---|---|
+| Lenguaje | Java 21 (LTS) |
+| Framework | Spring Boot 4.0.7 / Spring Framework 7 |
 | Persistencia | Spring Data JPA + Hibernate, PostgreSQL 16 |
-| Seguridad | Spring Security 7, JWT (JJWT), BCrypt      |
-| Testing | JUnit 5, Mockito, AssertJ, Testcontainers  |
-| Documentación | springdoc-openapi (Swagger UI)             |
-| Contenedores | Docker / Docker Compose                    |
-| Build | Maven                                      |
+| Seguridad | Spring Security 7, JWT (JJWT), BCrypt |
+| Caché | Redis 7 |
+| Mensajería | RabbitMQ 4 (exchange topic, cola muerta) |
+| Testing | JUnit 5, Mockito, AssertJ, Testcontainers, Awaitility |
+| Documentación | springdoc-openapi (Swagger UI) |
+| Contenedores | Docker / Docker Compose (multi-etapa) |
+| CI/CD | GitHub Actions, GitHub Container Registry |
+| Build | Maven |
 
 ## Arquitectura
 
@@ -69,8 +81,9 @@ com.shopapi
  ├── pedido/      incluye LineaPedido y la maquina de estados
  ├── auth/        login y registro
  ├── security/    JWT, filtros, UserDetailsService, manejo de 401/403
+ ├── messaging/   eventos de pedido, exchange/colas de RabbitMQ
  ├── common/      excepciones globales y respuestas de error
- └── config/      OpenAPI y configuración transversal
+ └── config/      OpenAPI, Redis y configuración transversal
 ```
 
 Es una decisión deliberada: se comporta como un monolito modular pensado para poder extraerse a microservicios el día que el proyecto lo necesite, sin la sobreingeniería de montar microservicios reales para un proyecto de este tamaño.
@@ -157,26 +170,32 @@ stateDiagram-v2
     CANCELADO --> [*]
 ```
 
-Cancelar un pedido (desde `PENDIENTE` o `CONFIRMADO`) repone automáticamente el stock de cada línea. `ENTREGADO` y `CANCELADO` son estados finales: cualquier transición no contemplada en el diagrama devuelve `409 Conflict`.
+Cancelar un pedido (desde `PENDIENTE` o `CONFIRMADO`) repone automáticamente el stock de cada línea. `ENTREGADO` y `CANCELADO` son estados finales: cualquier transición no contemplada en el diagrama devuelve `409 Conflict`. Cada creación y cada cambio de estado publica un evento asíncrono (RabbitMQ) para su posterior notificación.
 
 ## Cómo ejecutarlo en local
 
-**Requisitos**: JDK 21, Docker Desktop, Maven (o usar el wrapper incluido).
+**Requisitos**: Docker Desktop (única dependencia real). Opcionalmente, JDK 21 y Maven si prefieres desarrollar fuera de un contenedor.
+
+### Opción rápida: todo con Docker
 
 ```bash
-# 1. Clonar el repositorio
 git clone https://github.com/enriquegar95/shopapi.git
 cd shopapi
+cp .env.example .env   # edita .env con tus propios valores, sobre todo JWT_SECRET
+docker compose up --build -d
+```
 
-# 2. Levantar PostgreSQL con Docker Compose
-docker compose up -d
+La API queda disponible en `http://localhost:8080`, sin necesidad de tener Java ni Maven instalados. El panel de administración de RabbitMQ está en `http://localhost:15672` (`guest`/`guest`), y pgAdmin en `http://localhost:5050`.
 
-# 3. Arrancar la aplicación
+### Opción de desarrollo activo
+
+```bash
+docker compose up -d postgres redis rabbitmq   # solo la infraestructura
 ./mvnw spring-boot:run        # Linux/macOS
 mvnw.cmd spring-boot:run      # Windows
 ```
 
-La API queda disponible en `http://localhost:8080`, y la documentación interactiva en `http://localhost:8080/swagger-ui/index.html`.
+Documentación interactiva en `http://localhost:8080/swagger-ui/index.html`.
 
 **Prueba rápida del flujo completo:**
 
@@ -191,7 +210,7 @@ curl -X POST http://localhost:8080/api/v1/auth/register \
 
 ## Documentación de la API
 
-Con la aplicación corriendo, Swagger UI (`/swagger-ui/index.html`) documenta todos los endpoints, con la posibilidad de autenticarte con un token JWT desde el propio botón **Authorize** y probar cualquier endpoint protegido directamente desde el navegador.
+Con la aplicación corriendo, Swagger UI (`/swagger-ui/index.html`) documenta todos los endpoints, con ejemplos realistas en cada campo y la posibilidad de autenticarte con un token JWT desde el propio botón **Authorize** para probar cualquier endpoint protegido directamente desde el navegador. La especificación completa también se exporta a `docs/openapi.yaml`, importable directamente en Postman/Insomnia o visualizable en `editor.swagger.io` sin tener que ejecutar el proyecto.
 
 ## Testing
 
@@ -200,10 +219,14 @@ Con la aplicación corriendo, Swagger UI (`/swagger-ui/index.html`) documenta to
 mvnw.cmd test         # Windows
 ```
 
-- **Tests unitarios** de la lógica de negocio (`ProductoService`, `PedidoService`, `JwtService`), con dependencias simuladas vía Mockito — sin tocar base de datos, ejecución en milisegundos.
-- **Tests de integración** contra una instancia real de PostgreSQL levantada de forma efímera con Testcontainers, verificando el comportamiento completo incluida la capa de seguridad.
+- **Tests unitarios** de la lógica de negocio (`ProductoService`, `PedidoService`, `JwtService`), con dependencias simuladas vía Mockito — sin tocar infraestructura real, ejecución en milisegundos.
+- **Tests de integración** contra instancias reales de PostgreSQL, Redis y RabbitMQ, levantadas de forma efímera con Testcontainers — incluida la verificación de que los eventos de pedido se publican correctamente tras el commit de la transacción (con Awaitility para las aserciones asíncronas).
 
-Se prioriza cubrir la lógica con reglas de negocio reales (control de stock, transiciones de estado, autorización por propiedad) por encima de tests triviales de CRUD, que aportan poco valor de verificación.
+Se prioriza cubrir la lógica con reglas de negocio reales (control de stock, transiciones de estado, autorización por propiedad, invalidación de caché entre servicios) por encima de tests triviales de CRUD, que aportan poco valor de verificación.
+
+## CI/CD
+
+Cada push a `main` dispara un pipeline en GitHub Actions que compila el proyecto, ejecuta la suite de tests completa (unitarios e integración, Testcontainers incluido) y, si todo pasa, construye y publica la imagen Docker en GitHub Container Registry. Nada se publica sin pasar los tests primero.
 
 ## Decisiones técnicas destacadas
 
@@ -215,17 +238,21 @@ Algunas decisiones de diseño que fueron deliberadas, no por defecto:
 - **JWT sin estado en servidor**: coherente con el principio *stateless* de REST, sin necesidad de infraestructura de sesiones compartida entre instancias.
 - **La autorización por rol y la autorización por propiedad de datos viven en capas distintas**: la primera se declara con `@PreAuthorize` (no depende de datos), la segunda se resuelve en el service (depende de a quién pertenece el recurso concreto).
 - **BCrypt, no SHA/MD5, para contraseñas**: diseñado deliberadamente para ser lento, con salt automático por contraseña — resistente a fuerza bruta de una forma que un hash rápido no lo es.
+- **La caché de productos se invalida explícitamente desde `PedidoService`, no solo desde `ProductoService`**: el stock cambia al crear o cancelar un pedido, no al editar un producto — invalidar la caché únicamente en el CRUD "obvio" habría dejado datos obsoletos tras cada compra.
+- **Los eventos de pedido se publican solo tras el commit de la transacción** (`@TransactionalEventListener(phase = AFTER_COMMIT)`): evita el problema de "escritura dual" entre guardar en base de datos y publicar un mensaje — si la transacción hace rollback, el mensaje nunca llega a salir.
+- **Cola muerta (DLQ) para mensajes que fallan al procesarse**: un mensaje que no se puede procesar no se reintenta indefinidamente ni bloquea el resto de la cola — se aísla para revisión, en vez de perderse o atascar el sistema.
 
 ## Roadmap
 
-Fases completadas y verificadas: CRUD base, autenticación y autorización, lógica de negocio de pedidos con máquina de estados. En marcha o pendiente:
+Fases completadas y verificadas: CRUD base, autenticación y autorización, lógica de negocio de pedidos con máquina de estados, documentación OpenAPI, caché con Redis, mensajería con RabbitMQ, containerización completa y CI/CD. Pendiente:
 
-- [ ] Suite de tests de integración completa (Testcontainers) para el resto de controllers
-- [X] Documentación OpenAPI enriquecida con ejemplos y descripciones de negocio
-- [ ] Caché con Redis para el catálogo de productos
-- [ ] Procesamiento asíncrono de pedidos con RabbitMQ
-- [ ] Docker Compose completo (app + base de datos + servicios) y despliegue
-- [ ] CI/CD con GitHub Actions
+- [ ] Suite de tests de integración completa (Testcontainers) para el resto de controllers (Categoria, Usuario, Pedido)
+- [x] Documentación OpenAPI enriquecida con ejemplos y descripciones de negocio
+- [x] Caché con Redis para el catálogo de productos
+- [x] Mensajería asíncrona con RabbitMQ
+- [x] Docker Compose completo (aplicación + PostgreSQL + Redis + RabbitMQ)
+- [x] CI/CD con GitHub Actions
+- [ ] Despliegue en un entorno accesible públicamente
 
 ## Sobre el autor
 
