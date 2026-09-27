@@ -1,28 +1,28 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/shopapi
-    username: shopapi
-    password: shopapi
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:shopapi}
+    username: ${DB_USER:shopapi}
+    password: ${DB_PASSWORD:shopapi}
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
 server:
   port: 8080
 
 jwt:
-  secret: "proyecto-api-shop-spring-boot-hibernate-postgres-sql-docker"
-  expiration: 86400000
+  secret: ${JWT_SECRET:proyecto-api-shop-spring-boot-hibernate-postgres-sql-docker}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 springdoc:
   swagger-ui:

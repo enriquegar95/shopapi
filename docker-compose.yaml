@@ -3,13 +3,18 @@ services:
     image: postgres:16
     container_name: shopapi-db
     environment:
-      POSTGRES_DB: shopapi
-      POSTGRES_USER: shopapi
-      POSTGRES_PASSWORD: shopapi
+      POSTGRES_DB: ${DB_NAME:-shopapi}
+      POSTGRES_USER: ${DB_USER:-shopapi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-shopapi}
     ports:
       - "5432:5432"
     volumes:
       - shopapi-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-shopapi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   pgadmin:
     image: dpage/pgadmin4
@@ -25,6 +30,11 @@ services:
     container_name: shopapi-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:4-management
@@ -32,6 +42,38 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: shopapi-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-shopapi}
+      DB_USER: ${DB_USER:-shopapi}
+      DB_PASSWORD: ${DB_PASSWORD:-shopapi}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      JWT_SECRET: ${JWT_SECRET:?Debes definir JWT_SECRET en tu archivo .env}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   shopapi-data:
